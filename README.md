@@ -1,4 +1,4 @@
-# Daily Weather Email Workflow
+# n8n Weather Email Workflow
 ![n8n-workflow](./n8n-weather-email-workflow.png "n8n Weather Email Workflow")
 **Author:** Roy Kim - Customized Code
 **License:** MIT
