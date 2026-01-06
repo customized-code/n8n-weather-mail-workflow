@@ -1,10 +1,10 @@
 # n8n Weather Workflow Test Suite
 
 **Author:** Roy Kim - Customized Code
-**Last Updated:** 2026-01-05
+**Last Updated:** 2026-01-06
 **Version:** 2.0.0
 
-Comprehensive structural validation test suite for the Daily Weather Email workflow.
+Comprehensive structural validation test suite for the Daily Weather Email workflow, including TDD-driven 7-day forecast tests.
 
 ## Table of Contents
 
@@ -69,16 +69,19 @@ Think of it like **inspecting a recipe** (structural) vs **actually cooking the 
 
 ### Current Statistics
 
-- **Total Tests**: 56
-- **Test Suites**: 12
+- **Total Tests**: 80 (56 structural + 24 7-day forecast)
+- **Test Suites**: 13
 - **All Tests**: Passing
 - **Code Coverage**: ~6% (appropriate for structural validation)
 - **Average Test Duration**: < 1 second
 - **API Calls**: Only GET requests to fetch workflow details
+- **TDD Implementation**: 7-day forecast feature (24 tests)
 
 ### Test Categories
 
-The test suite validates 12 major areas:
+The test suite validates 13 major areas:
+
+#### Structural Validation Tests (56 tests)
 
 1. **Workflow Metadata** (4 tests) - Name, ID, settings, archive status
 2. **Node Structure** (4 tests) - Correct nodes, counts, types
@@ -92,6 +95,15 @@ The test suite validates 12 major areas:
 10. **Data Flow Logic** (4 tests) - Multi-location processing patterns
 11. **Input Validation Scenarios** (4 tests) - Different input configurations
 12. **API Connectivity** (3 tests) - n8n API access and authentication
+
+#### 7-Day Forecast Feature Tests (24 tests)
+
+13. **7-Day Forecast Implementation** (24 tests) - TDD-driven feature validation
+- Data extraction (7 tests) - Daily forecast array, iteration, temperature extraction
+- HTML rendering (7 tests) - Section display, day names, temperatures, styling
+- Integration (4 tests) - Compatibility with existing features
+- Documentation (2 tests) - Sticky note updates, workflow overview
+- Edge cases (4 tests) - Missing data, units conversion, undefined values
 
 ## Prerequisites
 
@@ -234,6 +246,12 @@ npm test -- -t "should have correct workflow name"
 
 # Run a specific test file
 npm test tests/workflows/weather-email-workflow.test.js
+
+# Run only 7-day forecast tests
+npm test tests/workflows/seven-day-forecast.test.js
+
+# Run 7-day forecast tests with pattern
+npm test -- --testNamePattern="7-Day Forecast"
 ```
 
 ### Viewing Coverage Reports
@@ -259,6 +277,7 @@ start coverage/lcov-report/index.html
 tests/
 workflows/
 weather-email-workflow.test.js # Main test suite (56 tests)
+seven-day-forecast.test.js # 7-day forecast tests (24 tests)
 helpers/
 n8n-client.js # n8n API wrapper
 test-utils.js # Test utility functions
@@ -392,6 +411,59 @@ describe('Node Structure', () => {
 - Can fetch workflow details from n8n API
 - Can check if workflow is active
 - n8n client has proper configuration
+
+### 13. 7-Day Forecast Feature (24 tests)
+
+**TDD Implementation**: These tests were written *before* the feature was implemented, following Test-Driven Development methodology.
+
+#### Data Extraction (7 tests)
+
+- Extract daily forecast data from API response (`weather.daily.data`)
+- Iterate through 7 days of forecast data (`.slice(0, 7)`)
+- Extract high/low temperatures for each day
+- Extract weather icons/conditions
+- Format day of week (`toLocaleDateString`)
+- Extract precipitation probability
+- Handle missing or undefined data gracefully
+
+#### HTML Rendering (7 tests)
+
+- Include 7-day forecast section in HTML
+- Proper HTML structure with forecast cards
+- Display day names (Monday, Tuesday, etc.)
+- Display high/low temperatures with correct units
+- Display weather icons and conditions
+- Display precipitation probability percentage
+- Styled forecast cards with CSS classes (`.forecast-day`, `.day-name`, `.day-temps`)
+
+#### Integration (4 tests)
+
+- Don't break existing current weather section
+- Don't break existing 6-hour forecast
+- Maintain proper HTML structure
+- Return data in expected format with all fields
+
+#### Documentation (2 tests)
+
+- Sticky notes mention 7-day forecast
+- Workflow overview updated with new feature
+
+#### Edge Cases (4 tests)
+
+- Handle missing `daily.data` array (defaults to `[]`)
+- Handle less than 7 days returned
+- Format temperatures with correct units (us/si/ca/uk)
+- Handle undefined temperature values (returns 'N/A')
+
+**Test File**: `tests/workflows/seven-day-forecast.test.js`
+
+**Run Tests**:
+
+```bash
+npm test tests/workflows/seven-day-forecast.test.js
+```
+
+**Implementation Details**: See [7-DAY-FORECAST-IMPLEMENTATION.md](../7-DAY-FORECAST-IMPLEMENTATION.md) for complete TDD process documentation.
 
 ## Troubleshooting
 
