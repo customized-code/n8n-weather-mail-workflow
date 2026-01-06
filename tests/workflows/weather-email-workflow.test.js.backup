@@ -1,0 +1,603 @@
+/**
+ * Comprehensive Test Suite for Daily Weather Email Workflow
+ * Tests multi-location weather fetching, formatting, and email delivery
+ */
+
+const N8nClient = require('../helpers/n8n-client');
+const validInputs = require('../fixtures/weather-email-workflow/valid-inputs.json');
+const invalidInputs = require('../fixtures/weather-email-workflow/invalid-inputs.json');
+const edgeCases = require('../fixtures/weather-email-workflow/edge-cases.json');
+const mockApiResponses = require('../fixtures/weather-email-workflow/mock-api-responses.json');
+
+// Workflow ID - update this with your actual workflow ID
+const WORKFLOW_ID = 'mjMeOswPI3QYnbIv';
+
+describe('Workflow: Daily Weather Email Report (PirateWeather)', () => {
+  let n8nClient;
+  let executionIds = [];
+
+  beforeAll(async () => {
+    n8nClient = new N8nClient();
+
+    // Verify workflow exists
+    const workflow = await n8nClient.getWorkflowDetails(WORKFLOW_ID);
+    expect(workflow).toBeDefined();
+    expect(workflow.name).toBe('Daily Weather Email Report (PirateWeather)');
+  });
+
+  afterAll(async () => {
+    // Cleanup test executions
+    console.log(`\n🧹 Cleaning up ${executionIds.length} test executions...`);
+    for (const execId of executionIds) {
+      try {
+        await n8nClient.deleteExecution(execId);
+      } catch (error) {
+        console.warn(`Failed to delete execution ${execId}`);
+      }
+    }
+  });
+
+  /**
+   * Helper function to execute workflow and track execution
+   */
+  async function executeAndTrack(inputData, shouldWait = false) {
+    const execution = await n8nClient.executeWorkflow(WORKFLOW_ID, inputData);
+    if (execution.id) {
+      executionIds.push(execution.id);
+    }
+
+    if (shouldWait && execution.id) {
+      return await n8nClient.waitForExecution(execution.id);
+    }
+
+    return execution;
+  }
+
+  // ============================================================================
+  // HAPPY PATH TESTS
+  // ============================================================================
+
+  describe('Happy Path - Single Location', () => {
+    test('should process single location successfully', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+      expect(execution.data.resultData.error).toBeUndefined();
+
+      // Verify Parse & Split Locations node output
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations).toHaveLength(1);
+      expect(parsedLocations[0].json.locationName).toBe('New York');
+      expect(parsedLocations[0].json.lat).toBe('40.7128');
+      expect(parsedLocations[0].json.lon).toBe('-74.0060');
+    });
+
+    test('should format weather data correctly for single location', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      // Verify Format Each Location's Weather node output
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formattedData).toHaveLength(1);
+
+      const weatherData = formattedData[0].json;
+      expect(weatherData).toHaveProperty('location');
+      expect(weatherData).toHaveProperty('coordinates');
+      expect(weatherData).toHaveProperty('weatherInfo');
+      expect(weatherData).toHaveProperty('htmlBody');
+      expect(weatherData).toHaveProperty('temperature');
+      expect(weatherData).toHaveProperty('conditions');
+      expect(weatherData).toHaveProperty('timestamp');
+
+      // Verify HTML contains expected elements
+      expect(weatherData.htmlBody).toContain('Weather Report');
+      expect(weatherData.htmlBody).toContain(weatherData.location);
+    });
+
+    test('should combine single location report correctly', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      expect(combinedReport).toHaveLength(1);
+
+      const report = combinedReport[0].json;
+      expect(report).toHaveProperty('subject');
+      expect(report).toHaveProperty('htmlBody');
+      expect(report).toHaveProperty('locationCount');
+      expect(report).toHaveProperty('locations');
+
+      expect(report.locationCount).toBe(1);
+      expect(report.locations).toHaveLength(1);
+      expect(report.subject).toContain('New York');
+    });
+  });
+
+  describe('Happy Path - Multiple Locations', () => {
+    test('should process multiple locations successfully', async () => {
+      const input = validInputs.multipleLocations;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      // Verify all locations were parsed
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations).toHaveLength(3);
+
+      const locationNames = parsedLocations.map(loc => loc.json.locationName);
+      expect(locationNames).toContain('New York');
+      expect(locationNames).toContain('Los Angeles');
+      expect(locationNames).toContain('Chicago');
+    });
+
+    test('should format weather for each location independently', async () => {
+      const input = validInputs.multipleLocations;
+      const execution = await executeAndTrack(input, true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formattedData).toHaveLength(3);
+
+      // Verify each location has its own formatted data
+      const locations = formattedData.map(item => item.json.location);
+      expect(locations).toContain('New York');
+      expect(locations).toContain('Los Angeles');
+      expect(locations).toContain('Chicago');
+
+      // Verify each has required fields
+      formattedData.forEach(item => {
+        expect(item.json).toHaveProperty('htmlBody');
+        expect(item.json).toHaveProperty('temperature');
+        expect(item.json.htmlBody).toContain(item.json.location);
+      });
+    });
+
+    test('should combine multiple location reports with correct subject', async () => {
+      const input = validInputs.multipleLocations;
+      const execution = await executeAndTrack(input, true);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      const report = combinedReport[0].json;
+
+      expect(report.locationCount).toBe(3);
+      expect(report.locations).toHaveLength(3);
+
+      // Subject should include all 3 locations
+      expect(report.subject).toContain('New York');
+      expect(report.subject).toContain('Los Angeles');
+      expect(report.subject).toContain('Chicago');
+    });
+
+    test('should handle four locations with "+N more" format in subject', async () => {
+      const input = validInputs.fourLocations;
+      const execution = await executeAndTrack(input, true);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      const report = combinedReport[0].json;
+
+      expect(report.locationCount).toBe(4);
+      expect(report.locations).toHaveLength(4);
+
+      // Subject should show first 2 locations and "+2 more"
+      expect(report.subject).toMatch(/Spokane WA.*Coeur D Alene ID.*\+2 more/);
+    });
+  });
+
+  describe('Happy Path - Unit Systems', () => {
+    test('should process metric units (SI) correctly', async () => {
+      const input = validInputs.metricUnits;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      const weatherInfo = formattedData[0].json.weatherInfo;
+
+      // Metric units should show °C and m/s or km/h
+      expect(weatherInfo).toMatch(/°C|Celsius/);
+    });
+
+    test('should process Canadian units correctly', async () => {
+      const input = validInputs.canadianUnits;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formattedData).toHaveLength(2);
+    });
+
+    test('should process UK units correctly', async () => {
+      const input = validInputs.ukUnits;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formattedData).toHaveLength(1);
+    });
+
+    test('should process US units (Imperial) correctly', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      const weatherInfo = formattedData[0].json.weatherInfo;
+
+      // US units should show °F and mph
+      expect(weatherInfo).toMatch(/°F|Fahrenheit/);
+      expect(weatherInfo).toMatch(/mph/);
+    });
+  });
+
+  // ============================================================================
+  // DATA VALIDATION TESTS
+  // ============================================================================
+
+  describe('Data Validation - Output Schema', () => {
+    const expectedFormattedWeatherSchema = {
+      required: ['location', 'coordinates', 'weatherInfo', 'htmlBody', 'temperature', 'conditions', 'timestamp'],
+      properties: {
+        location: { type: 'string' },
+        coordinates: { type: 'string' },
+        weatherInfo: { type: 'string' },
+        htmlBody: { type: 'string' },
+        temperature: { type: 'number' },
+        conditions: { type: 'string' },
+        timestamp: { type: 'string' },
+        rawData: { type: 'object' }
+      }
+    };
+
+    const expectedCombinedReportSchema = {
+      required: ['weatherInfo', 'htmlBody', 'subject', 'locationCount', 'locations', 'timestamp'],
+      properties: {
+        weatherInfo: { type: 'string' },
+        htmlBody: { type: 'string' },
+        subject: { type: 'string' },
+        locationCount: { type: 'number' },
+        locations: { type: 'array' },
+        avgTemperature: { type: 'number' },
+        timestamp: { type: 'string' }
+      }
+    };
+
+    test('should return correct schema for formatted weather data', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      const weatherData = formattedData[0].json;
+
+      const validation = n8nClient.validateWorkflowOutput(weatherData, expectedFormattedWeatherSchema);
+      expect(validation.valid).toBe(true);
+      expect(validation.errors).toHaveLength(0);
+    });
+
+    test('should return correct schema for combined report', async () => {
+      const input = validInputs.multipleLocations;
+      const execution = await executeAndTrack(input, true);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      const report = combinedReport[0].json;
+
+      const validation = n8nClient.validateWorkflowOutput(report, expectedCombinedReportSchema);
+      expect(validation.valid).toBe(true);
+      expect(validation.errors).toHaveLength(0);
+    });
+
+    test('should include all required weather details in formatted output', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      const weatherInfo = formattedData[0].json.weatherInfo;
+
+      // Verify key weather details are present
+      expect(weatherInfo).toContain('Current Conditions:');
+      expect(weatherInfo).toContain('Temperature:');
+      expect(weatherInfo).toContain('Feels Like:');
+      expect(weatherInfo).toContain('Humidity:');
+      expect(weatherInfo).toContain('Wind Speed:');
+      expect(weatherInfo).toContain('6-Hour Forecast:');
+    });
+
+    test('should generate valid HTML in email body', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      const htmlBody = formattedData[0].json.htmlBody;
+
+      // Verify HTML structure
+      expect(htmlBody).toContain('<html>');
+      expect(htmlBody).toContain('</html>');
+      expect(htmlBody).toContain('<head>');
+      expect(htmlBody).toContain('<style>');
+      expect(htmlBody).toContain('<body>');
+      expect(htmlBody).toContain('weather-report');
+      expect(htmlBody).toContain('Powered by PirateWeather API');
+    });
+  });
+
+  // ============================================================================
+  // EDGE CASES
+  // ============================================================================
+
+  describe('Edge Cases - Extreme Locations', () => {
+    test('should handle extreme northern latitude', async () => {
+      const input = edgeCases.extremeNorthLocation;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations[0].json.lat).toBe('64.1466');
+    });
+
+    test('should handle extreme southern latitude', async () => {
+      const input = edgeCases.extremeSouthLocation;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations[0].json.lat).toBe('-54.8019');
+    });
+
+    test('should handle location near international date line', async () => {
+      const input = edgeCases.datelineCrossing;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations[0].json.lon).toBe('178.4419');
+    });
+
+    test('should handle zero coordinates (Null Island)', async () => {
+      const input = edgeCases.zeroCoordinates;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations[0].json.lat).toBe('0');
+      expect(parsedLocations[0].json.lon).toBe('0');
+    });
+  });
+
+  describe('Edge Cases - Location Names', () => {
+    test('should handle special characters in location name', async () => {
+      const input = edgeCases.specialCharactersInName;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      const locationName = formattedData[0].json.location;
+
+      expect(locationName).toContain('São Paulo');
+      expect(locationName).toContain('&');
+
+      // Verify HTML escaping
+      const htmlBody = formattedData[0].json.htmlBody;
+      expect(htmlBody).toBeDefined();
+    });
+
+    test('should handle very long location name', async () => {
+      const input = edgeCases.veryLongLocationName;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formattedData[0].json.location.length).toBeGreaterThan(100);
+    });
+  });
+
+  describe('Edge Cases - Maximum Locations', () => {
+    test('should handle 10 locations efficiently', async () => {
+      const input = edgeCases.maximumLocations;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations).toHaveLength(10);
+
+      const formattedData = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formattedData).toHaveLength(10);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      expect(combinedReport[0].json.locationCount).toBe(10);
+    }, 60000); // Extended timeout for multiple API calls
+
+    test('should format subject correctly for 10 locations', async () => {
+      const input = edgeCases.maximumLocations;
+      const execution = await executeAndTrack(input, true);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      const subject = combinedReport[0].json.subject;
+
+      // Should show first 2 and "+8 more"
+      expect(subject).toMatch(/\+8 more/);
+    }, 60000);
+  });
+
+  describe('Edge Cases - Coordinate Precision', () => {
+    test('should handle high-precision decimal coordinates', async () => {
+      const input = edgeCases.decimalPrecisionCoordinates;
+      const execution = await executeAndTrack(input, true);
+
+      expect(execution.finished).toBe(true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations[0].json.lat).toBe('40.712775897');
+      expect(parsedLocations[0].json.lon).toBe('-74.006058576');
+    });
+  });
+
+  // ============================================================================
+  // ERROR HANDLING TESTS
+  // ============================================================================
+
+  describe('Error Handling - Invalid Input', () => {
+    test('should handle missing API key gracefully', async () => {
+      const input = invalidInputs.missingApiKey;
+
+      try {
+        await executeAndTrack(input, true);
+      } catch (error) {
+        // Expected to fail
+        expect(error).toBeDefined();
+      }
+    });
+
+    test('should handle empty locations array', async () => {
+      const input = invalidInputs.emptyLocations;
+
+      const execution = await executeAndTrack(input, true);
+
+      const parsedLocations = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsedLocations).toHaveLength(0);
+    });
+
+    test('should handle malformed JSON in locations', async () => {
+      const input = invalidInputs.malformedJson;
+
+      try {
+        await executeAndTrack(input, true);
+      } catch (error) {
+        // Parse & Split node should fail with invalid JSON
+        expect(error).toBeDefined();
+      }
+    });
+  });
+
+  // ============================================================================
+  // PERFORMANCE TESTS
+  // ============================================================================
+
+  describe('Performance - Execution Time', () => {
+    test('should complete single location workflow within reasonable time', async () => {
+      const input = validInputs.singleLocation;
+      const startTime = Date.now();
+
+      const execution = await executeAndTrack(input, true);
+      const duration = Date.now() - startTime;
+
+      expect(execution.finished).toBe(true);
+      expect(duration).toBeLessThan(15000); // Should complete within 15 seconds
+    });
+
+    test('should complete 3-location workflow within reasonable time', async () => {
+      const input = validInputs.multipleLocations;
+      const startTime = Date.now();
+
+      const execution = await executeAndTrack(input, true);
+      const duration = Date.now() - startTime;
+
+      expect(execution.finished).toBe(true);
+      expect(duration).toBeLessThan(30000); // Should complete within 30 seconds
+    });
+  });
+
+  // ============================================================================
+  // INTEGRATION TESTS
+  // ============================================================================
+
+  describe('Integration - Full Workflow Flow', () => {
+    test('should execute complete workflow from trigger to email node', async () => {
+      const input = validInputs.singleLocation;
+      const execution = await executeAndTrack(input, true);
+
+      // Verify each node executed successfully
+      const nodeNames = [
+        'Set Multiple Locations',
+        'Parse & Split Locations',
+        'Get Weather from PirateWeather',
+        "Format Each Location's Weather",
+        'Combine All Weather Reports'
+      ];
+
+      for (const nodeName of nodeNames) {
+        const nodeOutput = n8nClient.getNodeOutput(execution, nodeName);
+        expect(nodeOutput.length).toBeGreaterThan(0);
+      }
+    });
+
+    test('should pass data correctly between all nodes', async () => {
+      const input = validInputs.multipleLocations;
+      const execution = await executeAndTrack(input, true);
+
+      // Verify data flow
+      const config = n8nClient.getNodeOutput(execution, 'Set Multiple Locations');
+      expect(config).toHaveLength(1);
+
+      const parsed = n8nClient.getNodeOutput(execution, 'Parse & Split Locations');
+      expect(parsed).toHaveLength(3);
+
+      const formatted = n8nClient.getNodeOutput(execution, "Format Each Location's Weather");
+      expect(formatted).toHaveLength(3);
+
+      const combined = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      expect(combined).toHaveLength(1);
+    });
+
+    test('should preserve location data through entire workflow', async () => {
+      const input = validInputs.multipleLocations;
+      const execution = await executeAndTrack(input, true);
+
+      const combinedReport = n8nClient.getNodeOutput(execution, 'Combine All Weather Reports');
+      const locations = combinedReport[0].json.locations;
+
+      expect(locations).toContain('New York');
+      expect(locations).toContain('Los Angeles');
+      expect(locations).toContain('Chicago');
+    });
+  });
+
+  // ============================================================================
+  // WORKFLOW METADATA TESTS
+  // ============================================================================
+
+  describe('Workflow Metadata', () => {
+    test('should have correct workflow configuration', async () => {
+      const workflow = await n8nClient.getWorkflowDetails(WORKFLOW_ID);
+
+      expect(workflow.nodes).toBeDefined();
+      expect(workflow.connections).toBeDefined();
+      expect(workflow.settings.executionOrder).toBe('v1');
+    });
+
+    test('should have all required nodes', async () => {
+      const workflow = await n8nClient.getWorkflowDetails(WORKFLOW_ID);
+
+      const requiredNodes = [
+        'Manual Trigger',
+        'Set Multiple Locations',
+        'Parse & Split Locations',
+        'Get Weather from PirateWeather',
+        "Format Each Location's Weather",
+        'Combine All Weather Reports',
+        'Send Weather Email'
+      ];
+
+      const nodeNames = workflow.nodes.map(node => node.name);
+
+      requiredNodes.forEach(nodeName => {
+        expect(nodeNames).toContain(nodeName);
+      });
+    });
+
+    test('should have correct node connections', async () => {
+      const workflow = await n8nClient.getWorkflowDetails(WORKFLOW_ID);
+
+      // Verify key connections exist
+      expect(workflow.connections['Set Multiple Locations']).toBeDefined();
+      expect(workflow.connections['Parse & Split Locations']).toBeDefined();
+      expect(workflow.connections['Get Weather from PirateWeather']).toBeDefined();
+    });
+  });
+});

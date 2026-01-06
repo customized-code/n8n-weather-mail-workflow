@@ -1,0 +1,79 @@
+{
+  "missingApiKey": {
+    "units": "us",
+    "locations": [
+      {
+        "name": "New York",
+        "lat": "40.7128",
+        "lon": "-74.0060"
+      }
+    ]
+  },
+  "emptyLocations": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": []
+  },
+  "invalidUnits": {
+    "apiKey": "test-api-key-12345",
+    "units": "invalid",
+    "locations": [
+      {
+        "name": "New York",
+        "lat": "40.7128",
+        "lon": "-74.0060"
+      }
+    ]
+  },
+  "missingLocationName": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "lat": "40.7128",
+        "lon": "-74.0060"
+      }
+    ]
+  },
+  "missingCoordinates": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "name": "New York"
+      }
+    ]
+  },
+  "invalidLatitude": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "name": "Invalid Location",
+        "lat": "999",
+        "lon": "-74.0060"
+      }
+    ]
+  },
+  "invalidLongitude": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "name": "Invalid Location",
+        "lat": "40.7128",
+        "lon": "999"
+      }
+    ]
+  },
+  "malformedJson": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": "not-a-json-array"
+  },
+  "nullLocations": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": null
+  }
+}

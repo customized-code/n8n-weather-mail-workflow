@@ -1,0 +1,103 @@
+{
+  "singleLocation": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "name": "New York",
+        "lat": "40.7128",
+        "lon": "-74.0060"
+      }
+    ]
+  },
+  "multipleLocations": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "name": "New York",
+        "lat": "40.7128",
+        "lon": "-74.0060"
+      },
+      {
+        "name": "Los Angeles",
+        "lat": "34.0522",
+        "lon": "-118.2437"
+      },
+      {
+        "name": "Chicago",
+        "lat": "41.8781",
+        "lon": "-87.6298"
+      }
+    ]
+  },
+  "metricUnits": {
+    "apiKey": "test-api-key-12345",
+    "units": "si",
+    "locations": [
+      {
+        "name": "London",
+        "lat": "51.5074",
+        "lon": "-0.1278"
+      },
+      {
+        "name": "Paris",
+        "lat": "48.8566",
+        "lon": "2.3522"
+      }
+    ]
+  },
+  "canadianUnits": {
+    "apiKey": "test-api-key-12345",
+    "units": "ca",
+    "locations": [
+      {
+        "name": "Toronto",
+        "lat": "43.6532",
+        "lon": "-79.3832"
+      },
+      {
+        "name": "Vancouver",
+        "lat": "49.2827",
+        "lon": "-123.1207"
+      }
+    ]
+  },
+  "ukUnits": {
+    "apiKey": "test-api-key-12345",
+    "units": "uk",
+    "locations": [
+      {
+        "name": "Manchester",
+        "lat": "53.4808",
+        "lon": "-2.2426"
+      }
+    ]
+  },
+  "fourLocations": {
+    "apiKey": "test-api-key-12345",
+    "units": "us",
+    "locations": [
+      {
+        "name": "Spokane WA",
+        "lat": "47.6590",
+        "lon": "-117.4250"
+      },
+      {
+        "name": "Coeur D Alene ID",
+        "lat": "47.6733",
+        "lon": "-116.7738"
+      },
+      {
+        "name": "Medimont ID",
+        "lat": "47.4352",
+        "lon": "-116.5277"
+      },
+      {
+        "name": "Saint Maries ID",
+        "lat": "47.3163",
+        "lon": "-116.5711"
+      }
+    ]
+  }
+}
