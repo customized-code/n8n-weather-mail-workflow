@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "🚀 SETUP & CONFIGURATION\n\nThis section initiates and configures the workflow:\n• Manual Trigger: Run workflow on demand for testing\n• Schedule Trigger: Automated daily at 7:00 AM\n  (activate this trigger for automatic daily emails)\n• Set Configuration: Define API key, coordinates,\n  location name, and units system (us/si/ca/uk)",
-        "height": 240,
+        "content": "🚀 SETUP & CONFIGURATION\n\nThis section initiates and configures the workflow:\n• Manual Trigger: Start workflow on demand\n  (can be replaced with Schedule Trigger for automation)\n• Set Configuration: Define API key, coordinates,\n  location name, and units system (us/si/ca/uk)",
+        "height": 220,
         "width": 380,
         "color": 2
       },
@@ -12,11 +12,14 @@
       "name": "Setup & Configuration",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [230, 100]
+      "position": [
+        230,
+        100
+      ]
     },
     {
       "parameters": {
-        "content": "🌐 DATA FETCH & PROCESSING\n\nRetrieves and formats weather information:\n• Get Weather from PirateWeather: API call returns\n  current conditions, 48hr hourly, and 7-day forecasts\n• Format Weather Data: JavaScript extracts and formats:\n  - Current temp, feels-like, conditions\n  - 6-hour forecast with weather icons\n  - Daily high/low temperatures\n  - Humidity, wind, precipitation, UV index\n  Generates beautiful HTML email template",
+        "content": "🌐 DATA FETCH & PROCESSING\n\nRetrieves and formats weather information:\n• Get Weather from PirateWeather: API call returns\n  current conditions, 48hr hourly, and 7-day forecasts\n• Format Weather Data: JavaScript extracts and formats:\n  - Current temp, feels-like, conditions\n  - 6-hour forecast with weather icons\n  - 7-day forecast with daily high/low temps\n  - Daily high/low temperatures\n  - Humidity, wind, precipitation, UV index\n  Generates beautiful HTML email template",
         "height": 280,
         "width": 420,
         "color": 4
@@ -25,7 +28,10 @@
       "name": "Data Fetch & Processing",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [630, 80]
+      "position": [
+        630,
+        80
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "Email Delivery",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1100, 100]
+      "position": [
+        1100,
+        100
+      ]
     },
     {
       "parameters": {
@@ -51,7 +60,10 @@
       "name": "Workflow Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [440, 460]
+      "position": [
+        440,
+        460
+      ]
     },
     {
       "parameters": {},
@@ -59,7 +71,10 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
@@ -76,7 +91,10 @@
       "name": "Schedule Trigger (Daily 7AM)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [250, 420]
+      "position": [
+        250,
+        420
+      ]
     },
     {
       "parameters": {
@@ -120,7 +138,10 @@
       "name": "Set Configuration",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
@@ -140,17 +161,23 @@
       "name": "Get Weather from PirateWeather",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Get the PirateWeather API response and config\nconst weather = $input.all()[0].json;\nconst config = $('Set Configuration').first().json;\n\n// Extract current weather data\nconst currently = weather.currently || {};\nconst daily = weather.daily?.data?.[0] || {};\nconst hourly = weather.hourly?.data || [];\n\n// Format temperature based on units\nconst getTemp = (temp) => {\n  if (!temp) return 'N/A';\n  const unit = config.units === 'si' || config.units === 'ca' ? '°C' : '°F';\n  return `${Math.round(temp)}${unit}`;\n};\n\n// Format wind speed\nconst getWindSpeed = (speed) => {\n  if (!speed) return 'N/A';\n  const unit = config.units === 'si' ? 'm/s' : (config.units === 'ca' ? 'km/h' : 'mph');\n  return `${Math.round(speed)} ${unit}`;\n};\n\n// Get weather icon description\nconst getIconDescription = (icon) => {\n  const icons = {\n    'clear-day': '☀️ Clear',\n    'clear-night': '🌙 Clear',\n    'rain': '🌧️ Rain',\n    'snow': '❄️ Snow',\n    'sleet': '🌨️ Sleet',\n    'wind': '💨 Windy',\n    'fog': '🌫️ Foggy',\n    'cloudy': '☁️ Cloudy',\n    'partly-cloudy-day': '⛅ Partly Cloudy',\n    'partly-cloudy-night': '☁️ Partly Cloudy'\n  };\n  return icons[icon] || '🌤️ ' + icon;\n};\n\n// Build weather details\nconst weatherDetails = [\n  `Current Conditions: ${getIconDescription(currently.icon)}`,\n  `Temperature: ${getTemp(currently.temperature)}`,\n  `Feels Like: ${getTemp(currently.apparentTemperature)}`,\n  `Humidity: ${Math.round(currently.humidity * 100)}%`,\n  `Wind Speed: ${getWindSpeed(currently.windSpeed)}`,\n  `Wind Gust: ${getWindSpeed(currently.windGust)}`,\n  `Precipitation Probability: ${Math.round((currently.precipProbability || 0) * 100)}%`,\n  `Cloud Cover: ${Math.round((currently.cloudCover || 0) * 100)}%`,\n  `UV Index: ${currently.uvIndex || 'N/A'}`,\n  `Visibility: ${currently.visibility || 'N/A'} miles`,\n  `Pressure: ${currently.pressure ? Math.round(currently.pressure) + ' mb' : 'N/A'}`,\n  ``,\n  `Today's Forecast:`,\n  `High: ${getTemp(daily.temperatureHigh)} at ${new Date(daily.temperatureHighTime * 1000).toLocaleTimeString()}`,\n  `Low: ${getTemp(daily.temperatureLow)} at ${new Date(daily.temperatureLowTime * 1000).toLocaleTimeString()}`,\n  `Summary: ${daily.summary || currently.summary || 'No summary available'}`\n];\n\n// Add next 6 hours forecast\nweatherDetails.push('', '6-Hour Forecast:');\nhourly.slice(0, 6).forEach((hour, i) => {\n  const time = new Date(hour.time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});\n  weatherDetails.push(`${time}: ${getTemp(hour.temperature)}, ${getIconDescription(hour.icon)}`);\n});\n\nconst weatherInfo = weatherDetails.join('\\n');\n\n// Create HTML formatted email\nconst htmlBody = `\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 20px; }\n    .weather-report { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; }\n    .location { font-size: 18px; opacity: 0.9; margin-top: 5px; }\n    .current-weather { background: #f8f9fa; padding: 25px; text-align: center; border-bottom: 2px solid #e9ecef; }\n    .temperature { font-size: 48px; font-weight: bold; color: #667eea; margin: 10px 0; }\n    .condition { font-size: 24px; color: #666; }\n    .details { padding: 25px; }\n    .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e9ecef; }\n    .detail-label { font-weight: 600; color: #555; }\n    .detail-value { color: #777; }\n    .forecast-section { background: #f8f9fa; padding: 20px 25px; margin: 20px 0; border-radius: 8px; }\n    .forecast-title { font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 15px; }\n    .hourly-item { padding: 8px 0; border-bottom: 1px solid #dee2e6; }\n    .footer { background: #343a40; color: #adb5bd; padding: 15px; text-align: center; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"weather-report\">\n    <div class=\"header\">\n      <h1>🌤️ Weather Report</h1>\n      <div class=\"location\">${config.locationName}</div>\n      <div class=\"location\" style=\"font-size: 14px; margin-top: 10px;\">${config.latitude}°N, ${Math.abs(config.longitude)}°W</div>\n    </div>\n    \n    <div class=\"current-weather\">\n      <div class=\"condition\">${getIconDescription(currently.icon)}</div>\n      <div class=\"temperature\">${getTemp(currently.temperature)}</div>\n      <div style=\"color: #888; font-size: 16px;\">Feels like ${getTemp(currently.apparentTemperature)}</div>\n    </div>\n    \n    <div class=\"details\">\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">💧 Humidity</span>\n        <span class=\"detail-value\">${Math.round(currently.humidity * 100)}%</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">💨 Wind Speed</span>\n        <span class=\"detail-value\">${getWindSpeed(currently.windSpeed)}</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">🌧️ Precipitation</span>\n        <span class=\"detail-value\">${Math.round((currently.precipProbability || 0) * 100)}%</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">☁️ Cloud Cover</span>\n        <span class=\"detail-value\">${Math.round((currently.cloudCover || 0) * 100)}%</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">☀️ UV Index</span>\n        <span class=\"detail-value\">${currently.uvIndex || 'N/A'}</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">👁️ Visibility</span>\n        <span class=\"detail-value\">${currently.visibility || 'N/A'} miles</span>\n      </div>\n    </div>\n    \n    <div style=\"padding: 0 25px;\">\n      <div class=\"forecast-section\">\n        <div class=\"forecast-title\">📅 Today's Forecast</div>\n        <div style=\"color: #666;\">\n          <strong>High:</strong> ${getTemp(daily.temperatureHigh)} <br>\n          <strong>Low:</strong> ${getTemp(daily.temperatureLow)} <br>\n          <strong>Summary:</strong> ${daily.summary || currently.summary || 'No summary available'}\n        </div>\n      </div>\n      \n      <div class=\"forecast-section\">\n        <div class=\"forecast-title\">⏰ 6-Hour Forecast</div>\n        ${hourly.slice(0, 6).map(hour => `\n          <div class=\"hourly-item\">\n            ${new Date(hour.time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}: \n            <strong>${getTemp(hour.temperature)}</strong> - \n            ${getIconDescription(hour.icon)}\n          </div>\n        `).join('')}\n      </div>\n    </div>\n    \n    <div class=\"footer\">\n      <p>Powered by PirateWeather API | Generated ${new Date().toLocaleString()}</p>\n      <p style=\"margin-top: 5px; font-size: 11px;\">Data updated: ${new Date(currently.time * 1000).toLocaleString()}</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    location: config.locationName,\n    coordinates: `${config.latitude}, ${config.longitude}`,\n    weatherInfo: weatherInfo,\n    htmlBody: htmlBody,\n    temperature: currently.temperature,\n    conditions: currently.icon,\n    timestamp: new Date().toISOString(),\n    rawData: weather\n  }\n}];"
+        "jsCode": "// Get the PirateWeather API response and config\nconst weather = $input.all()[0].json;\nconst config = $('Set Configuration').first().json;\n\n// Extract current weather data\nconst currently = weather.currently || {};\nconst daily = weather.daily?.data?.[0] || {};\nconst dailyForecast = weather.daily?.data || [];\nconst hourly = weather.hourly?.data || [];\n\n// Format temperature based on units\nconst getTemp = (temp) => {\n  if (!temp) return 'N/A';\n  const unit = config.units === 'si' || config.units === 'ca' ? '°C' : '°F';\n  return `${Math.round(temp)}${unit}`;\n};\n\n// Format wind speed\nconst getWindSpeed = (speed) => {\n  if (!speed) return 'N/A';\n  const unit = config.units === 'si' ? 'm/s' : (config.units === 'ca' ? 'km/h' : 'mph');\n  return `${Math.round(speed)} ${unit}`;\n};\n\n// Get weather icon description\nconst getIconDescription = (icon) => {\n  const icons = {\n    'clear-day': '☀️ Clear',\n    'clear-night': '🌙 Clear',\n    'rain': '🌧️ Rain',\n    'snow': '❄️ Snow',\n    'sleet': '🌨️ Sleet',\n    'wind': '💨 Windy',\n    'fog': '🌫️ Foggy',\n    'cloudy': '☁️ Cloudy',\n    'partly-cloudy-day': '⛅ Partly Cloudy',\n    'partly-cloudy-night': '☁️ Partly Cloudy'\n  };\n  return icons[icon] || '🌤️ ' + icon;\n};\n\n// Build weather details\nconst weatherDetails = [\n  `Current Conditions: ${getIconDescription(currently.icon)}`,\n  `Temperature: ${getTemp(currently.temperature)}`,\n  `Feels Like: ${getTemp(currently.apparentTemperature)}`,\n  `Humidity: ${Math.round(currently.humidity * 100)}%`,\n  `Wind Speed: ${getWindSpeed(currently.windSpeed)}`,\n  `Wind Gust: ${getWindSpeed(currently.windGust)}`,\n  `Precipitation Probability: ${Math.round((currently.precipProbability || 0) * 100)}%`,\n  `Cloud Cover: ${Math.round((currently.cloudCover || 0) * 100)}%`,\n  `UV Index: ${currently.uvIndex || 'N/A'}`,\n  `Visibility: ${currently.visibility || 'N/A'} miles`,\n  `Pressure: ${currently.pressure ? Math.round(currently.pressure) + ' mb' : 'N/A'}`,\n  ``,\n  `Today's Forecast:`,\n  `High: ${getTemp(daily.temperatureHigh)} at ${new Date(daily.temperatureHighTime * 1000).toLocaleTimeString()}`,\n  `Low: ${getTemp(daily.temperatureLow)} at ${new Date(daily.temperatureLowTime * 1000).toLocaleTimeString()}`,\n  `Summary: ${daily.summary || currently.summary || 'No summary available'}`\n];\n\n// Add next 6 hours forecast\nweatherDetails.push('', '6-Hour Forecast:');\nhourly.slice(0, 6).forEach((hour, i) => {\n  const time = new Date(hour.time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});\n  weatherDetails.push(`${time}: ${getTemp(hour.temperature)}, ${getIconDescription(hour.icon)}`);\n});\n\n// Add 7-day forecast\nweatherDetails.push('', '7-Day Forecast:');\ndailyForecast.slice(0, 7).forEach((day, i) => {\n  const dayName = new Date(day.time * 1000).toLocaleDateString('en-US', { weekday: 'long' });\n  const high = getTemp(day.temperatureHigh);\n  const low = getTemp(day.temperatureLow);\n  const precip = Math.round((day.precipProbability || 0) * 100);\n  weatherDetails.push(`${dayName}: High ${high}, Low ${low}, ${getIconDescription(day.icon)}, ${precip}% precip`);\n});\n\nconst weatherInfo = weatherDetails.join('\\n');\n\n// Create HTML formatted email\nconst htmlBody = `\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 20px; }\n    .weather-report { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; }\n    .location { font-size: 18px; opacity: 0.9; margin-top: 5px; }\n    .current-weather { background: #f8f9fa; padding: 25px; text-align: center; border-bottom: 2px solid #e9ecef; }\n    .temperature { font-size: 48px; font-weight: bold; color: #667eea; margin: 10px 0; }\n    .condition { font-size: 24px; color: #666; }\n    .details { padding: 25px; }\n    .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e9ecef; }\n    .detail-label { font-weight: 600; color: #555; }\n    .detail-value { color: #777; }\n    .forecast-section { background: #f8f9fa; padding: 20px 25px; margin: 20px 0; border-radius: 8px; }\n    .forecast-title { font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 15px; }\n    .hourly-item { padding: 8px 0; border-bottom: 1px solid #dee2e6; }\n    .forecast-day { padding: 12px 0; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; }\n    .day-name { font-weight: 600; color: #555; min-width: 100px; }\n    .day-temps { color: #667eea; font-weight: 500; }\n    .day-condition { color: #777; flex: 1; text-align: right; }\n    .footer { background: #343a40; color: #adb5bd; padding: 15px; text-align: center; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"weather-report\">\n    <div class=\"header\">\n      <h1>🌤️ Weather Report</h1>\n      <div class=\"location\">${config.locationName}</div>\n      <div class=\"location\" style=\"font-size: 14px; margin-top: 10px;\">${config.latitude}°N, ${Math.abs(config.longitude)}°W</div>\n    </div>\n\n    <div class=\"current-weather\">\n      <div class=\"condition\">${getIconDescription(currently.icon)}</div>\n      <div class=\"temperature\">${getTemp(currently.temperature)}</div>\n      <div style=\"color: #888; font-size: 16px;\">Feels like ${getTemp(currently.apparentTemperature)}</div>\n    </div>\n\n    <div class=\"details\">\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">💧 Humidity</span>\n        <span class=\"detail-value\">${Math.round(currently.humidity * 100)}%</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">💨 Wind Speed</span>\n        <span class=\"detail-value\">${getWindSpeed(currently.windSpeed)}</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">🌧️ Precipitation</span>\n        <span class=\"detail-value\">${Math.round((currently.precipProbability || 0) * 100)}%</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">☁️ Cloud Cover</span>\n        <span class=\"detail-value\">${Math.round((currently.cloudCover || 0) * 100)}%</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">☀️ UV Index</span>\n        <span class=\"detail-value\">${currently.uvIndex || 'N/A'}</span>\n      </div>\n      <div class=\"detail-row\">\n        <span class=\"detail-label\">👁️ Visibility</span>\n        <span class=\"detail-value\">${currently.visibility || 'N/A'} miles</span>\n      </div>\n    </div>\n\n    <div style=\"padding: 0 25px;\">\n      <div class=\"forecast-section\">\n        <div class=\"forecast-title\">📅 Today's Forecast</div>\n        <div style=\"color: #666;\">\n          <strong>High:</strong> ${getTemp(daily.temperatureHigh)} <br>\n          <strong>Low:</strong> ${getTemp(daily.temperatureLow)} <br>\n          <strong>Summary:</strong> ${daily.summary || currently.summary || 'No summary available'}\n        </div>\n      </div>\n\n      <div class=\"forecast-section\">\n        <div class=\"forecast-title\">⏰ 6-Hour Forecast</div>\n        ${hourly.slice(0, 6).map(hour => `\n          <div class=\"hourly-item\">\n            ${new Date(hour.time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}:\n            <strong>${getTemp(hour.temperature)}</strong> -\n            ${getIconDescription(hour.icon)}\n          </div>\n        `).join('')}\n      </div>\n\n      <div class=\"forecast-section\">\n        <div class=\"forecast-title\">📆 7-Day Forecast</div>\n        ${dailyForecast.slice(0, 7).map((day, index) => `\n          <div class=\"forecast-day\">\n            <span class=\"day-name\">${new Date(day.time * 1000).toLocaleDateString('en-US', { weekday: 'long' })}</span>\n            <span class=\"day-temps\">High ${getTemp(day.temperatureHigh)} / Low ${getTemp(day.temperatureLow)}</span>\n            <span class=\"day-condition\">${getIconDescription(day.icon)} ${Math.round((day.precipProbability || 0) * 100)}%</span>\n          </div>\n        `).join('')}\n      </div>\n    </div>\n\n    <div class=\"footer\">\n      <p>Powered by PirateWeather API | Generated ${new Date().toLocaleString()}</p>\n      <p style=\"margin-top: 5px; font-size: 11px;\">Data updated: ${new Date(currently.time * 1000).toLocaleString()}</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    location: config.locationName,\n    coordinates: `${config.latitude}, ${config.longitude}`,\n    weatherInfo: weatherInfo,\n    htmlBody: htmlBody,\n    temperature: currently.temperature,\n    conditions: currently.icon,\n    timestamp: new Date().toISOString(),\n    rawData: weather\n  }\n}];\n"
       },
       "id": "code-1",
       "name": "Format Weather Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     },
     {
       "parameters": {
@@ -165,7 +192,10 @@
       "name": "Send Weather Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     }
   ],
   "connections": {
